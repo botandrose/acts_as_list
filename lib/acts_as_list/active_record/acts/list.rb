@@ -146,11 +146,26 @@ module ActiveRecord
           attrs = record.send(:timestamp_attributes_for_update_in_model)
           now = record.send(:current_time_from_proper_timezone)
 
-          query = attrs.map { |attr| "#{attr} = :now" }
-          query.push updates
-          query = query.join(", ")
+          case updates
+          when String, Array
+            query = attrs.map { |attr| "#{attr} = :now" }
+            query.push Array(updates).first
+            query = query.join(", ")
 
-          update_all([query, now: now])
+            values = Array(updates).second || {}
+            values[:now] = now
+
+            update_all([query, values])
+
+          when Hash
+            query = attrs.inject(updates) do |hash, attr|
+              hash.merge attr => now
+            end
+            update_all(query)
+
+          else
+            raise ArgumentError
+          end
         end
       end
 
